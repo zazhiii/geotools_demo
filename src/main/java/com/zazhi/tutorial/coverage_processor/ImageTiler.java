@@ -85,6 +85,10 @@ public class ImageTiler {
         double coverageMaxX = coverageEnvelope.getMaxX();
         double coverageMinY = coverageEnvelope.getMinY();
         double coverageMaxY = coverageEnvelope.getMaxY();
+        System.out.println("coverageMinX: " + coverageMinX);
+        System.out.println("coverageMaxX: " + coverageMaxX);
+        System.out.println("coverageMinY: " + coverageMinY);
+        System.out.println("coverageMaxY: " + coverageMaxY);
 
         // 计算瓦片数
         int htc = this.getNumberOfHorizontalTiles() != null ? this.getNumberOfHorizontalTiles() : NUM_HORIZONTAL_TILES;
@@ -138,7 +142,9 @@ public class ImageTiler {
     }
 
     /**
-     * 裁剪栅格数据
+     * =======================
+     * ====== 裁剪栅格数据 =====
+     * =======================
      */
     private GridCoverage2D cropCoverage(GridCoverage2D gridCoverage, ReferencedEnvelope envelope) {
         CoverageProcessor processor = CoverageProcessor.getInstance();

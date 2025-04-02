@@ -6,15 +6,18 @@ import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.GridFormatFinder;
 import org.geotools.coverage.grid.io.imageio.geotiff.GeoKeyEntry;
 import org.geotools.coverage.grid.io.imageio.geotiff.GeoTiffIIOMetadataDecoder;
+import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.data.DataSourceException;
 import org.geotools.gce.geotiff.GeoTiffFormat;
 import org.geotools.gce.geotiff.GeoTiffReader;
 import org.geotools.gce.geotiff.GeoTiffWriteParams;
 import org.geotools.geometry.Envelope2D;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.GridCoverageLayer;
 import org.geotools.map.MapContent;
 import org.geotools.referencing.CRS;
 import org.geotools.swing.JMapFrame;
+import org.geotools.util.factory.Hints;
 import org.junit.Test;
 import org.opengis.coverage.grid.Format;
 import org.opengis.coverage.grid.GridCoordinates;
@@ -23,6 +26,7 @@ import org.opengis.coverage.grid.GridEnvelope;
 import org.opengis.parameter.GeneralParameterValue;
 import org.opengis.parameter.ParameterValueGroup;
 import org.opengis.referencing.FactoryException;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 import javax.media.jai.PlanarImage;
 import javax.swing.*;
@@ -56,6 +60,7 @@ public class TifTest {
 
     @Test
     public void readTifInfo() throws Exception {
+
         // GridEnvelope: 网格的结构
         GridEnvelope originalGridRange = reader.getOriginalGridRange();
 
@@ -82,5 +87,62 @@ public class TifTest {
         System.out.println(format.getName());
         System.out.println(format.getVendor());
         System.out.println(format.getVersion());
+    }
+
+    /**
+     * 裁剪TIF文件
+     */
+    @Test
+    public void cropTif() throws Exception {
+        String SOURCE_FILE_PATH = "E:\\遥感数据\\NE2_50M_SR\\NE2_50M_SR.tif";
+        String TARGET_FILE_PATH = "E:\\遥感数据\\NE2_50M_SR";
+        String TARGET_FILE_NAME = "crop.tif";
+
+        File file = new File(SOURCE_FILE_PATH);
+        AbstractGridFormat format = GridFormatFinder.findFormat(file);
+
+        // 修复GeoTiff加载时的坐标轴顺序问题
+        Hints hints = null;
+//        if (format instanceof GeoTiffFormat) {
+//            hints = new Hints(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER, Boolean.TRUE);
+//        }
+
+        GridCoverage2DReader reader = format.getReader(file, hints);
+        GridCoverage2D gridCoverage = reader.read(null);
+
+        Envelope2D coverageEnvelope2D = gridCoverage.getEnvelope2D();
+        double minX = coverageEnvelope2D.getMinX();
+        double maxX = coverageEnvelope2D.getMaxX();
+        double minY = coverageEnvelope2D.getMinY();
+        double maxY = coverageEnvelope2D.getMaxY();
+        System.out.println("minX: " + minX);
+        System.out.println("maxX: " + maxX);
+        System.out.println("minY: " + minY);
+        System.out.println("maxY: " + maxY);
+
+        // 获取栅格数据的坐标参考系统
+        CoordinateReferenceSystem targetCRS = gridCoverage.getCoordinateReferenceSystem();
+        System.out.println(targetCRS.getName());
+        // 创建分块的范围
+        // (x1, y1)为左下角坐标，(x2, y2)为右上角坐标
+        int x1 = -180, x2 = 0, y1 = -90, y2 = 0;
+        ReferencedEnvelope envelope = new ReferencedEnvelope(x1, x2, y1, y2, targetCRS);
+        // 创建处理器
+        CoverageProcessor processor = CoverageProcessor.getInstance();
+        //
+        ParameterValueGroup param = processor.getOperation("CoverageCrop").getParameters();
+        param.parameter("Source").setValue(gridCoverage);
+        param.parameter("Envelope").setValue(envelope);
+        GridCoverage2D finalCoverage = (GridCoverage2D) processor.doOperation(param);
+
+
+        File tileDirectory = new File(TARGET_FILE_PATH);
+        if (!tileDirectory.exists()) {
+            tileDirectory.mkdirs();
+        }
+
+        // 输出文件
+        File tileFile = new File(tileDirectory, TARGET_FILE_NAME);
+        format.getWriter(tileFile).write(finalCoverage, null);
     }
 }
